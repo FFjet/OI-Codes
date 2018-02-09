@@ -55,8 +55,8 @@ inline Point GetCrossPoint(line l1, line l2)
 }
 
 inline double ComputeTriangleVectorArea(Point p1, Point p2, Point p3)
-{   
-    return (double)0.5 * ((p2.x - p1.x) * (p3.y - p1.y) - (p3.x - p1.x) * (p2.y - p1.y));   
+{
+	return (double)0.5 * ((p2.x - p1.x) * (p3.y - p1.y) - (p3.x - p1.x) * (p2.y - p1.y));   
 }
 
 inline double ComputeAns(vector <Point> PointSet)
@@ -134,11 +134,13 @@ bool PointCmp(const Point &a, const Point &b, const Point &center)
 		return a.y > b.y;
 
 	double det = (double)(a.x - center.x) * (b.y - center.y) - (double)(b.x - center.x) * (a.y - center.y);
+	
 	if (det < 0) return true;//Ë³Ê±Õë
 	if (det > 0) return false;//ÄæÊ±Õë
 
 	double d1 = (a.x - center.x) * (a.x - center.x) + (a.y - center.y) * (a.y - center.y);
 	double d2 = (b.x - center.x) * (b.x - center.y) + (b.y - center.y) * (b.y - center.y);
+
 	return d1 > d2;
 }
 
@@ -156,8 +158,8 @@ inline Point Gravity(vector <Point> PointSet)
 
 inline void swap(Point &a, Point &b)
 {
-	Point t = a;
-	a = b, b = t;
+	Point t;
+	t = a, a = b, b = t;
 }
 inline void ClockwiseSortPoints(vector<Point> &vPoints)
 {
@@ -249,12 +251,7 @@ int main()
 		}
 		if (tot == 1) Points.push_back(*i);
 	}
-	for (register vector <Point>::iterator i = Points.begin(); i != Points.end(); ++i)
-	{
-		printf("%0.3lf %0.3lf\n", (*i).x, (*i).y);
-	}
-	cout << "&*@(#&* )0" << endl << endl; 
-	
+	//PointCmp((Point){ })
 	
 	ClockwiseSortPoints(Points);
 	
@@ -264,6 +261,6 @@ int main()
 		
 	}
 	printf("%0.3lf\n",ComputeAns(Points));
-	cout << PointCmp(Points[0],Points[Points.size() - 1], Gravity(Points));
+	cout << PointCmp(Points[0],Points[Points.size() - 3], Gravity(Points));
 	return 0;
 }
