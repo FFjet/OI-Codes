@@ -4,7 +4,9 @@
 #include <algorithm>
 #include <vector>
 #include <cmath>
-#define IMP -INT_MAX
+#define DOUBLE_MAX INT_MAX
+#define DOUBLE_MIN -INT_MAX
+#define IMP DOUBLE_MIN
 #pragma warning(disable:4996)
 
 #define ComputeTriangleVectorArea CTVA
@@ -13,13 +15,22 @@ using namespace std;
 struct line
 {
 	double k, b;
+	bool slope_exist; //If Slope exits, the line equation will be y=kx+b, or it will be x=b
+	friend ostream &operator<<(ostream &os, const line &l)
+    {
+    	if (l.slope_exist && l.k != 0) os << "y = " << l.k << "x + " << l.b;	
+    	else if (l.slope_exist) os << "y = " << l.b;
+    	else os << "x = " << l.b;
+    	return os;
+	}
 };
+
 struct Point
 {
 	double x, y;
 	bool operator==(const Point b) const
 	{
-		return (this->x == b.x && this->y == b.y);
+		return (abs(this->x - b.x) <= 1e-100 && abs(this->y - b.y) <= 1e-100);
 	}
 	bool operator!=(const Point b) const
 	{
@@ -31,27 +42,54 @@ struct Point
         this->y = p.y;
         return *this;
     }
+    friend ostream &operator<<(ostream &os, const Point &P)
+    {
+    	os << "(" << P.x << ',' << P.y << ')';
+    	return os;
+	}
 };
-vector <Point> PointsM;
-vector <Point> PointsN;
+
+typedef vector <Point> Polygon;
+Polygon PointsM;
+Polygon PointsN;
 int N, M;
-vector <Point> Points;
+Polygon Points;
 
 line GetLineFromPoint(Point a, Point b)
 {
-	if (a.y == b.y) return (line) { 0, a.y };
-	if (b.x == a.x) return (line) { INT_MAX, a.x };
+	if (a.y == b.y) return (line) { 0, a.y, 1 };
+	if (b.x == a.x) return (line) { 0, a.x, 0 };
 	double k = (b.y - a.y) / (b.x - a.x);
 	double b1 = a.y - k * a.x;
-	return (line) { k, b1 };
+	return (line) { k, b1, 1 };
 }
 
 inline Point GetCrossPoint(line l1, line l2)
 {
-	if (l1.k == l2.k) return (Point) { IMP, IMP };
-	double x = (l2.b - l1.b) / (l1.k - l2.k);
-	double y = l1.k * x + l1.b;
-	return (Point) { x, y };
+	if (l1.slope_exist && l2.slope_exist)
+	{
+		if (l1.k == l2.k) return (Point) { IMP, IMP };
+		double x = (l2.b - l1.b) / (l1.k - l2.k);
+		double y = l1.k * x + l1.b;
+		return (Point) { x, y };
+	}
+	else
+		if (l1.slope_exist && (!l2.slope_exist))
+		{
+			double x = l2.b;
+			double y = l1.k * x + l1.b;
+			return (Point) { x, y };
+		}
+		else
+			if ((!l1.slope_exist) && l2.slope_exist)
+			{
+				double x = l1.b;
+				double y = l2.k * x + l2.b;
+				return (Point) { x, y };
+			}
+			else
+				return (Point) { IMP, IMP };
+
 }
 
 inline double ComputeTriangleVectorArea(Point p1, Point p2, Point p3)
@@ -59,15 +97,20 @@ inline double ComputeTriangleVectorArea(Point p1, Point p2, Point p3)
 	return (double)0.5 * ((p2.x - p1.x) * (p3.y - p1.y) - (p3.x - p1.x) * (p2.y - p1.y));   
 }
 
-inline double ComputeAns(vector <Point> PointSet)
+inline double Com(Point p1, Point p2, Point p3)
+{
+	return (double)((p2.x - p1.x) * (p3.y - p1.y) - (p3.x - p1.x) * (p2.y - p1.y));   
+}
+
+inline double ComputeAns(Polygon PointSet)
 {
 	if (PointSet.empty()) return 0.0;
 	double area = 0.0;
 	Point O;
 	O.x = O.y = 0;
-	for (register vector<Point>::iterator ii = PointSet.begin(); ii != PointSet.end() - 1; ++ii)
+	for (register Polygon::iterator ii = PointSet.begin(); ii != PointSet.end() - 1; ++ii)
 	{
-		area += CTVA(O,(*ii),(*(ii + 1)));
+		area += CTVA(O, (*ii), (*(ii + 1)));
 	}
 	area += CTVA(O,PointSet[PointSet.size() - 1], PointSet[0]);
 	return abs(area);
@@ -77,7 +120,38 @@ inline bool CheckAns(Point aa, Point bb, Point cc, Point dd, Point res)
 {
 	if (aa.x > bb.x) swap(aa, bb);
 	if (cc.x > dd.x) swap(cc, dd);
-	return (aa.x <= res.x && res.x <= bb.x && cc.x <= res.x && res.x <= dd.x);
+	bool res1 = (aa.x <= res.x && res.x <= bb.x && cc.x <= res.x && res.x <= dd.x);
+	
+	if (aa.y > bb.y) swap(aa, bb);
+	if (cc.y > dd.y) swap(cc, dd);
+	bool res2 = (aa.y <= res.y && res.y <= bb.y && cc.y <= res.y && res.y <= dd.y);
+	return res1 & res2;
+}
+
+inline bool CheckAnsStrict(Point aa, Point bb, Point cc, Point dd, Point res)
+{
+	if (aa.x > bb.x) swap(aa, bb);
+	if (cc.x > dd.x) swap(cc, dd);
+	bool res1 = (aa.x < res.x && res.x < bb.x && cc.x < res.x && res.x < dd.x);
+	if (aa.y > bb.y) swap(aa, bb);
+	if (cc.y > dd.y) swap(cc, dd);
+	bool res2 = (aa.y < res.y && res.y < bb.y && cc.y < res.y && res.y < dd.y);
+	return res1 & res2;
+}
+
+inline bool Checked(Polygon PointSet, Point p)
+{
+	//if (p == (Point) { 0.0, 0.0 }) return false;
+	bool flag = true;
+	for (register Polygon::iterator i = PointSet.begin(); i != PointSet.end(); ++i)
+	{
+		if (p == *i)
+		{
+			flag = false;
+			break;
+		}
+	}
+	return flag;
 }
 
 inline Point GetCross(Point a, Point b, Point c, Point d)
@@ -91,7 +165,12 @@ inline Point GetCross(Point a, Point b, Point c, Point d)
 		{
 			line l = GetLineFromPoint(c, d);
 			double y = l.k * a.x + l.b;
-			return (Point) { a.x, y };
+			Point res;
+			res.x = a.x, res.y = y;
+			if (CheckAns(a, b, c, d, res))
+				return (Point) { a.x, y };
+			else
+				return (Point) { IMP, IMP };
 		}
 	}
 	else
@@ -101,7 +180,12 @@ inline Point GetCross(Point a, Point b, Point c, Point d)
 			{
 				line l = GetLineFromPoint(a, b);
 				double y = l.k * c.x + l.b;
-				return (Point) { c.x, y };
+				Point res;
+				res.x = c.x, res.y = y;
+				if (CheckAns(a, b, c, d, res))
+					return (Point) { a.x, y };
+				else
+					return (Point) { IMP, IMP };
 			}
 		}
 		else
@@ -110,79 +194,87 @@ inline Point GetCross(Point a, Point b, Point c, Point d)
 			line l2 = GetLineFromPoint(c, d);
 			
 			Point res = GetCrossPoint(l1, l2);
-			Point aa = a, bb = b, cc = c, dd = d;
-			if (aa.x > bb.x) swap(aa, bb);
-			if (cc.x > dd.x) swap(cc, dd);
-
-			if (res != (Point) { IMP, IMP })
-			{
-				if (aa.x <= res.x && res.x <= bb.x && cc.x <= res.x && res.x <= dd.x)
-				{
-					return res;
-				}
-				else
-					return (Point) { IMP, IMP };
-			}
+			if (CheckAns(a, b, c, d, res))
+				return res;
+			else
+				return (Point) { IMP, IMP };
 		}
 }
 
-bool PointCmp(const Point &a, const Point &b, const Point &center)
-{
-	if (a.x >= 0 && b.x < 0)
-		return true;
-	if (a.x == 0 && b.x == 0)
-		return a.y > b.y;
 
-	double det = (double)(a.x - center.x) * (b.y - center.y) - (double)(b.x - center.x) * (a.y - center.y);
-	
-	if (det < 0) return true;//顺时针
-	if (det > 0) return false;//逆时针
-
-	double d1 = (a.x - center.x) * (a.x - center.x) + (a.y - center.y) * (a.y - center.y);
-	double d2 = (b.x - center.x) * (b.x - center.y) + (b.y - center.y) * (b.y - center.y);
-
-	return d1 > d2;
-}
-
-
-inline Point Gravity(vector <Point> PointSet)
+Point center;
+inline Point calc_center(Polygon G)
 {
 	double x = 0, y = 0;
-	for (register vector<Point>::iterator i = PointSet.begin(); i != PointSet.end(); ++i)
+	for (register Polygon::iterator i = G.begin(); i != G.end(); ++i)
 	{
 		x += (*i).x;
 		y += (*i).y;
 	}
-	return (Point) {(double) x / PointSet.size(), (double)y / PointSet.size() };
+	x /= G.size(), y /= G.size();
+	return (Point) { x, y };
+}
+bool Cmpless(Point a, Point b)
+{
+    if (a.x - center.x >= 0 && b.x - center.x < 0)
+        return true;
+    if (a.x - center.x < 0 && b.x - center.x >= 0)
+        return false;
+    if (a.x - center.x == 0 && b.x - center.x == 0)
+	{
+        if (a.y - center.y >= 0 || b.y - center.y >= 0)
+            return a.y > b.y;
+        return b.y > a.y;
+    }
+
+    // compute the cross product of vectors (center -> a) x (center -> b)
+    int det = (a.x - center.x) * (b.y - center.y) - (b.x - center.x) * (a.y - center.y);
+    if (det < 0)
+        return true;
+    if (det > 0)
+        return false;
+    
+    // points a and b are on the same line from the center
+    // check which point is closer to the center
+    int d1 = (a.x - center.x) * (a.x - center.x) + (a.y - center.y) * (a.y - center.y);
+    int d2 = (b.x - center.x) * (b.x - center.x) + (b.y - center.y) * (b.y - center.y);
+    return d1 > d2;
+}
+inline void ClockwiseSortPoints(Polygon& G)
+{
+	center = calc_center(G);
+	sort(G.begin(), G.end(), Cmpless);
 }
 
-inline void swap(Point &a, Point &b)
+inline bool Inpolygon(Point P, Polygon G)
 {
-	Point t;
-	t = a, a = b, b = t;
-}
-inline void ClockwiseSortPoints(vector<Point> &vPoints)
-{
-	Point center = Gravity(vPoints);
-	
-	for (int i = 0; i < vPoints.size() - 1; i++)
+	Point END;
+	END.x = DOUBLE_MAX, END.y = DOUBLE_MAX - 1;
+	int tot = 0;
+	for (register Polygon::iterator i = G.begin(); i != G.end(); ++i)
 	{
-		for (int j = 0; j < vPoints.size() - i - 1; j++)
+		Polygon::iterator Nexti;
+		if (i == G.end() - 1) Nexti = G.begin();
+		else Nexti = i + 1;
+		Point CP = GetCross(P, END, *i, *Nexti);
+		if (CP != (Point) { IMP, IMP } && CheckAnsStrict(P, END, *i, *Nexti, CP))
 		{
-			if (PointCmp(vPoints[j], vPoints[j + 1], center))
-			{
-				swap(vPoints[j], vPoints[j + 1]);
-			}
+			++tot;
 		}
 	}
+	if (tot == 1) return true;
+	else return false;
 }
 
 int main()
 {
-	//freopen("area.in", "r", stdin);
-	//freopen("area.out", "w", stdout);
+	freopen("area.in", "r", stdin);
+	freopen("area.out", "w", stdout);
 	ios::sync_with_stdio(false);
+	
+	Points.clear(), PointsM.clear(), PointsN.clear();
 	cin >> N;
+	
 	for (register int i = 1; i <= N; ++i)
 	{
 		Point tmp;
@@ -196,71 +288,61 @@ int main()
 		cin >> tmp.x >> tmp.y;
 		PointsM.push_back(tmp);
 	}
-	for (register vector <Point>::iterator i = PointsN.begin(); i != PointsN.end(); ++i)
+	
+	for (register Polygon::iterator i = PointsN.begin(); i != PointsN.end(); ++i)
 	{
-		vector <Point>::iterator Nexti;
+		Polygon::iterator Nexti;
 		if (i == PointsN.end() - 1) Nexti = PointsN.begin();
 		else Nexti = i + 1;
-		for (register vector <Point>::iterator j = PointsM.begin(); j != PointsM.end(); ++j)
+		for (register Polygon::iterator j = PointsM.begin(); j != PointsM.end(); ++j)
 		{
-			vector <Point>::iterator Nextj;
+			Polygon::iterator Nextj;
 			if (j == PointsM.end() - 1) Nextj = PointsM.begin();
 			else Nextj = j + 1;
 			if (GetCross(*i, *Nexti, *j, *Nextj) != (Point) { IMP, IMP })
-				Points.push_back(GetCross(*i, *Nexti, *j, *Nextj));
-
-		}
-	}
-
-	Point P;
-	P.x = INT_MAX, P.y = INT_MAX;//将极长的线段看为射线
-	for (register vector <Point>::iterator i = PointsN.begin(); i != PointsN.end(); ++i)
-	{
-		line l = GetLineFromPoint(P, (*i));
-		int tot = 0;
-		for (register vector <Point>::iterator j = PointsM.begin(); j != PointsM.end(); ++j)
-		{
-			vector <Point>::iterator Nextj;
-			if (j == PointsM.end() - 1) Nextj = PointsM.begin();
-			else Nextj = j + 1;
-			line l2 = GetLineFromPoint(*j, *Nextj);
-			if (GetCrossPoint(l, l2) != (Point) { IMP, IMP })
 			{
-				if (CheckAns(P, (*i), *j, *Nextj, GetCrossPoint(l, l2)))
-					tot++;
+				Point P = GetCross(*i, *Nexti, *j, *Nextj);
+				if (Checked(Points, P))
+				{
+//					cout << GetLineFromPoint(*i, *Nexti) << endl << GetLineFromPoint(*j, *Nextj) << endl;
+					Points.push_back(P);
+//					cout << P << endl;
+				}
 			}
 		}
-		if (tot == 1) Points.push_back(*i);
 	}
-
-	for (register vector <Point>::iterator i = PointsM.begin(); i != PointsM.end(); ++i)
-	{
-		line l = GetLineFromPoint(P, (*i));
-		int tot = 0;
-		for (register vector <Point>::iterator j = PointsN.begin(); j != PointsN.end(); ++j)
-		{
-			vector <Point>::iterator Nextj;
-			if (j == PointsN.end() - 1) Nextj = PointsN.begin();
-			else Nextj = j + 1;
-			line l2 = GetLineFromPoint(*j, *Nextj);
-			if (GetCrossPoint(l, l2) != (Point) { IMP, IMP })
-			{
-				if (CheckAns(P, (*i), *j, *Nextj, GetCrossPoint(l, l2)))
-					tot++;
-			}
-		}
-		if (tot == 1) Points.push_back(*i);
-	}
-	//PointCmp((Point){ })
 	
+//	cout << "_______________________________" << endl;
+	for (register Polygon::iterator i = PointsN.begin(); i != PointsN.end(); ++i)
+	{
+		int tot = 0;
+		if (Inpolygon(*i, PointsM))
+			++tot;
+		if (tot == 1)
+			if (Checked(Points, *i))
+				Points.push_back(*i);
+	}
+
+	for (register Polygon::iterator i = PointsM.begin(); i != PointsM.end(); ++i)
+	{
+		int tot = 0;
+		if (Inpolygon(*i, PointsN))
+			++tot;
+		if (tot == 1)
+			if (Checked(Points, *i))
+				Points.push_back(*i);
+	}
+	
+	if (Points.empty())
+	{
+		cout << "0.000" << endl;
+		return 0;
+	}
 	ClockwiseSortPoints(Points);
-	
-	for (register vector <Point>::iterator i = Points.begin(); i != Points.end(); ++i)
-	{
-		printf("%0.3lf %0.3lf\n", (*i).x, (*i).y);
-		
-	}
+//	for (register Polygon::iterator i = Points.begin(); i != Points.end(); ++i)
+//	{
+//		cout << *i << endl;
+//	}
 	printf("%0.3lf\n",ComputeAns(Points));
-	cout << PointCmp(Points[0],Points[Points.size() - 3], Gravity(Points));
 	return 0;
 }
